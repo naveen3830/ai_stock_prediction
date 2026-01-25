@@ -64,7 +64,7 @@ This project demonstrates the use of traditional time series models (ARIMA) and 
 - Incorporate external factors like macroeconomic indicators and sentiment analysis.
 - Explore advanced models (e.g., Transformers) for improved predictions.
 - Combine ARIMA and LSTM in hybrid models.
-
+ 
 ## 🌐 Live Demo
 Check out the deployed web app: [Stock Price Predictor](https://stockpredictsp500.streamlit.app/)
 
