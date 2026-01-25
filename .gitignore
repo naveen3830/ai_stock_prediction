@@ -31,3 +31,7 @@ Thumbs.db
 
 # pycache
 __pycache__/
+
+# claude
+*.claude
+*.mypy_cache/

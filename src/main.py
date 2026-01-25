@@ -3,12 +3,22 @@ AI Stock Predictor
 ==================
 A modern, feature-rich stock analysis and prediction application
 with interactive charts, technical indicators, and AI-powered forecasting.
+
+DISCLAIMER: This application is for educational purposes only.
+It is not financial advice. Always consult a qualified financial
+advisor before making investment decisions.
 """
 
 import streamlit as st
 from datetime import date
 import pandas as pd
 import numpy as np
+from typing import Optional, Dict, Any
+
+# Configure logging first
+from logging_config import setup_logging, get_logger
+setup_logging()
+logger = get_logger(__name__)
 
 # Import custom modules
 from styles import get_theme_css, render_header, render_stock_badge, render_price_display, render_indicator_signal, render_section_header, get_plotly_theme
@@ -16,6 +26,8 @@ from charts import create_candlestick_chart, create_indicator_chart, create_pred
 from stock_data import STOCK_DATABASE, get_all_sectors, get_stocks_by_sector, get_stock_info, load_stock_data, load_multiple_stocks, get_current_price_info, calculate_returns, add_to_watchlist, remove_from_watchlist, get_watchlist, is_in_watchlist, extract_symbol_from_display
 from models.indicators import calculate_all_indicators, get_indicator_summary
 from models import lstm
+
+logger.info("Application started")
 
 # Constants
 START_DATE = "2015-01-01"
@@ -278,36 +290,31 @@ if st.session_state.selected_symbol:
             with forecast_col2:
                 confidence_level = st.slider("Confidence Level", 0.80, 0.99, 0.95, 0.01)
             
-            if st.button("🚀 Generate AI Forecast", type="primary"):
+            if st.button("Generate AI Forecast", type="primary"):
                 with st.spinner("Training LSTM model... This may take a minute."):
-                    # Preprocess data
-                    x_train, y_train, scaler = lstm.preprocess_data(data)
-                    
-                    # Build and train model
-                    model = lstm.build_lstm_model(x_train.shape)
-                    model, history = lstm.train_lstm_model(model, x_train, y_train, epochs=15)
-                    
-                    # Make historical predictions
-                    predictions = lstm.make_predictions(model, data, scaler)
-                    
-                    # Calculate metrics
-                    df = data.copy()
-                    if isinstance(df.columns, pd.MultiIndex):
-                        df.columns = df.columns.get_level_values(0)
-                    actual_values = df['Close'].iloc[-len(predictions):].values
-                    metrics = lstm.calculate_metrics(actual_values, predictions)
-                    
-                    # Generate future forecast
-                    future_dates, future_predictions = lstm.forecast_future(model, data, scaler, forecast_days)
-                    
-                    st.session_state.model_trained = True
-                    st.session_state.predictions = predictions
-                    st.session_state.future_dates = future_dates
-                    st.session_state.future_predictions = future_predictions
-                    st.session_state.metrics = metrics
-                    st.session_state.scaler = scaler
-                
-                st.success("✅ Model trained successfully!")
+                    try:
+                        # Use the improved training pipeline with proper data splitting
+                        model, scaler, metrics, historical_errors = lstm.train_and_evaluate(data, epochs=15)
+
+                        # Make historical predictions for visualization
+                        predictions = lstm.make_predictions(model, data, scaler)
+
+                        # Generate future forecast
+                        future_dates, future_predictions = lstm.forecast_future(model, data, scaler, forecast_days)
+
+                        st.session_state.model_trained = True
+                        st.session_state.predictions = predictions
+                        st.session_state.future_dates = future_dates
+                        st.session_state.future_predictions = future_predictions
+                        st.session_state.metrics = metrics
+                        st.session_state.scaler = scaler
+                        st.session_state.historical_errors = historical_errors
+
+                        st.success("Model trained successfully!")
+                        logger.info(f"Model trained for {symbol} with R²={metrics['r2']:.4f}")
+                    except Exception as e:
+                        st.error(f"Error training model: {str(e)}")
+                        logger.error(f"Model training failed: {str(e)}")
             
             # Display results if model is trained
             if st.session_state.get('model_trained') and st.session_state.get('predictions') is not None:
@@ -343,7 +350,8 @@ if st.session_state.selected_symbol:
                 forecast_df = lstm.create_prediction_dataframe(
                     st.session_state.future_dates,
                     st.session_state.future_predictions,
-                    confidence_level
+                    confidence_level,
+                    historical_errors=st.session_state.get('historical_errors')
                 )
                 
                 # Show first and last few predictions
@@ -459,11 +467,12 @@ if st.session_state.selected_symbol:
                 forecast_df = lstm.create_prediction_dataframe(
                     st.session_state.future_dates,
                     st.session_state.future_predictions,
-                    0.95
+                    0.95,
+                    historical_errors=st.session_state.get('historical_errors')
                 )
                 csv_forecast = forecast_df.to_csv(index=False)
                 st.download_button(
-                    label="📥 Download Forecast (CSV)",
+                    label="Download Forecast (CSV)",
                     data=csv_forecast,
                     file_name=f"{symbol}_forecast.csv",
                     mime="text/csv"
@@ -504,10 +513,14 @@ else:
                 st.rerun()
 
 
-# Footer
+# Footer with disclaimer
 st.markdown("""
 <div class="footer">
-    <p>Built with ❤️ using Streamlit, TensorFlow, and Plotly</p>
-    <p>Data provided by Yahoo Finance | Not financial advice</p>
+    <p>Built with Streamlit, TensorFlow, and Plotly</p>
+    <p><strong>DISCLAIMER:</strong> This application is for educational purposes only.
+    Predictions are based on historical data and machine learning models which may not
+    accurately predict future prices. This is NOT financial advice. Always consult a
+    qualified financial advisor before making investment decisions.</p>
+    <p>Data provided by Yahoo Finance</p>
 </div>
 """, unsafe_allow_html=True)

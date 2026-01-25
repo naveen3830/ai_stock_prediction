@@ -1,24 +1,47 @@
-# charts.py - Interactive Visualization Module
-"""
-Interactive Plotly charts for stock analysis:
-- Candlestick charts with volume
-- Technical indicator overlays
-- Prediction visualizations
-- Stock comparison charts
-"""
-
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
-from typing import List, Optional
+import logging
+from typing import List, Optional, Dict, Any, Union
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
+def validate_dataframe(df: pd.DataFrame, required_cols: List[str]) -> bool:
+    """
+    Validate DataFrame has required columns.
+
+    Args:
+        df: DataFrame to validate
+        required_cols: List of required column names
+
+    Returns:
+        True if valid, False otherwise
+    """
+    if df is None or df.empty:
+        logger.warning("DataFrame is None or empty")
+        return False
+
+    # Handle multi-level columns
+    data = df.copy()
+    if isinstance(data.columns, pd.MultiIndex):
+        data.columns = data.columns.get_level_values(0)
+
+    missing = [col for col in required_cols if col not in data.columns]
+    if missing:
+        logger.error(f"Missing required columns: {missing}")
+        return False
+
+    return True
 
 
 def create_candlestick_chart(
     df: pd.DataFrame,
     title: str = "Stock Price",
     show_volume: bool = True,
-    theme: dict = None
+    theme: Optional[Dict[str, Any]] = None
 ) -> go.Figure:
     """
     Create an interactive candlestick chart with optional volume.
@@ -121,7 +144,7 @@ def add_moving_averages(
     fig: go.Figure,
     df: pd.DataFrame,
     periods: List[int] = [20, 50],
-    colors: List[str] = None,
+    colors: Optional[List[str]] = None,
     use_subplots: bool = True
 ) -> go.Figure:
     """Add moving average lines to an existing chart."""
@@ -200,8 +223,8 @@ def add_bollinger_bands(
 def create_indicator_chart(
     df: pd.DataFrame,
     indicator: str = 'RSI',
-    title: str = None,
-    theme: dict = None
+    title: Optional[str] = None,
+    theme: Optional[Dict[str, Any]] = None
 ) -> go.Figure:
     """
     Create a chart for technical indicators (RSI, MACD, Stochastic).
@@ -344,11 +367,11 @@ def create_indicator_chart(
 def create_prediction_chart(
     df: pd.DataFrame,
     predictions: np.ndarray,
-    future_dates: pd.DatetimeIndex = None,
-    future_predictions: np.ndarray = None,
+    future_dates: Optional[pd.DatetimeIndex] = None,
+    future_predictions: Optional[np.ndarray] = None,
     confidence_interval: float = 0.05,
     title: str = "Price Prediction",
-    theme: dict = None
+    theme: Optional[Dict[str, Any]] = None
 ) -> go.Figure:
     """
     Create a chart showing actual vs predicted prices with future forecast.
@@ -478,10 +501,10 @@ def create_prediction_chart(
 
 
 def create_comparison_chart(
-    stock_data: dict,
+    stock_data: Dict[str, pd.DataFrame],
     normalize: bool = True,
     title: str = "Stock Comparison",
-    theme: dict = None
+    theme: Optional[Dict[str, Any]] = None
 ) -> go.Figure:
     """
     Create a multi-stock comparison chart.
@@ -559,7 +582,7 @@ def create_volume_analysis_chart(
     df: pd.DataFrame,
     ma_period: int = 20,
     title: str = "Volume Analysis",
-    theme: dict = None
+    theme: Optional[Dict[str, Any]] = None
 ) -> go.Figure:
     """Create a volume analysis chart with moving average."""
     if theme is None:

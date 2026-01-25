@@ -1,12 +1,17 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
+from math import sqrt
 from statsmodels.tsa.arima.model import ARIMA
 import warnings
 import itertools
+import logging
 from sklearn.metrics import mean_squared_error
 from datetime import datetime
 from statsmodels.tsa.stattools import adfuller
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 warnings.filterwarnings("ignore")  # To ignore warnings from ARIMA

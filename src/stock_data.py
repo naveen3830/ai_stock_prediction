@@ -5,13 +5,19 @@ Stock data management with:
 - Search functionality
 - Multi-stock comparison support
 - Watchlist management
+- Comprehensive error handling and logging
 """
 
 import yfinance as yf
 import pandas as pd
-from typing import List, Dict, Optional
+import numpy as np
+import logging
+from typing import List, Dict, Optional, Union
 from datetime import date
 import streamlit as st
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 # Extended stock mapping with sector information
@@ -186,123 +192,244 @@ def extract_symbol_from_display(display_name: str) -> str:
     return display_name
 
 
+def validate_symbol(symbol: str) -> bool:
+    """
+    Validate stock symbol format.
+
+    Args:
+        symbol: Stock ticker symbol to validate
+
+    Returns:
+        True if valid, False otherwise
+    """
+    if not symbol or not isinstance(symbol, str):
+        return False
+
+    # Basic validation: alphanumeric with optional dots (e.g., BRK.B)
+    cleaned = symbol.replace(".", "").replace("-", "")
+    if not cleaned.isalnum():
+        return False
+
+    if len(symbol) > 10:  # Most symbols are under 10 characters
+        return False
+
+    return True
+
+
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def load_stock_data(symbol: str, start_date: str = "2015-01-01", end_date: str = None) -> pd.DataFrame:
     """
-    Load stock data from Yahoo Finance.
-    
+    Load stock data from Yahoo Finance with comprehensive error handling.
+
     Args:
         symbol: Stock ticker symbol
         start_date: Start date for data
         end_date: End date for data (defaults to today)
-    
+
     Returns:
-        DataFrame with stock data
+        DataFrame with stock data, or empty DataFrame on error
     """
+    # Validate inputs
+    if not validate_symbol(symbol):
+        logger.error(f"Invalid stock symbol: {symbol}")
+        return pd.DataFrame()
+
     if end_date is None:
         end_date = date.today().strftime("%Y-%m-%d")
-    
-    data = yf.download(symbol, start=start_date, end=end_date, progress=False)
-    data.reset_index(inplace=True)
-    
-    return data
+
+    try:
+        logger.info(f"Loading stock data for {symbol} from {start_date} to {end_date}")
+        data = yf.download(symbol, start=start_date, end=end_date, progress=False)
+
+        if data.empty:
+            logger.warning(f"No data returned for {symbol}")
+            return pd.DataFrame()
+
+        data.reset_index(inplace=True)
+
+        # Validate data quality
+        required_columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+
+        # Handle multi-level columns from yfinance
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
+
+        missing_cols = [col for col in required_columns if col not in data.columns]
+        if missing_cols:
+            logger.error(f"Missing columns in data for {symbol}: {missing_cols}")
+            return pd.DataFrame()
+
+        # Check for excessive NaN values
+        nan_pct = data['Close'].isna().sum() / len(data) * 100
+        if nan_pct > 10:
+            logger.warning(f"High NaN percentage ({nan_pct:.1f}%) in {symbol} data")
+
+        # Fill minor gaps with forward fill
+        data = data.ffill().bfill()
+
+        logger.info(f"Successfully loaded {len(data)} rows for {symbol}")
+        return data
+
+    except Exception as e:
+        logger.error(f"Error loading data for {symbol}: {str(e)}")
+        return pd.DataFrame()
 
 
 def load_multiple_stocks(symbols: List[str], start_date: str = "2015-01-01", end_date: str = None) -> Dict[str, pd.DataFrame]:
     """
-    Load data for multiple stocks.
-    
+    Load data for multiple stocks with error handling.
+
     Args:
         symbols: List of stock ticker symbols
         start_date: Start date for data
         end_date: End date for data
-    
+
     Returns:
-        Dictionary of symbol -> DataFrame
+        Dictionary of symbol -> DataFrame (only includes successful loads)
     """
+    if not symbols:
+        logger.warning("No symbols provided to load_multiple_stocks")
+        return {}
+
     result = {}
+    failed_symbols = []
+
     for symbol in symbols:
         try:
-            result[symbol] = load_stock_data(symbol, start_date, end_date)
+            data = load_stock_data(symbol, start_date, end_date)
+            if not data.empty:
+                result[symbol] = data
+            else:
+                failed_symbols.append(symbol)
         except Exception as e:
-            print(f"Error loading {symbol}: {e}")
-    
+            logger.error(f"Error loading {symbol}: {str(e)}")
+            failed_symbols.append(symbol)
+
+    if failed_symbols:
+        logger.warning(f"Failed to load data for: {', '.join(failed_symbols)}")
+
+    logger.info(f"Successfully loaded {len(result)}/{len(symbols)} stocks")
     return result
 
 
-def get_current_price_info(data: pd.DataFrame) -> Dict:
+def get_current_price_info(data: pd.DataFrame) -> Optional[Dict]:
     """
-    Get current price information from stock data.
-    
+    Get current price information from stock data with error handling.
+
+    Args:
+        data: DataFrame with stock price data
+
     Returns:
-        Dictionary with current price, change, and change percentage
+        Dictionary with current price, change, and change percentage, or None on error
     """
-    if data.empty or len(data) < 2:
+    if data is None or data.empty or len(data) < 2:
+        logger.warning("Insufficient data for price info calculation")
         return None
-    
-    # Flatten columns if multi-level
-    df = data.copy()
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-    
-    current = float(df['Close'].iloc[-1])
-    previous = float(df['Close'].iloc[-2])
-    change = current - previous
-    change_pct = (change / previous) * 100
-    
-    # Get additional stats
-    high_52w = float(df['High'].tail(252).max())
-    low_52w = float(df['Low'].tail(252).min())
-    avg_volume = float(df['Volume'].tail(20).mean())
-    
-    return {
-        'current_price': current,
-        'previous_close': previous,
-        'change': change,
-        'change_pct': change_pct,
-        'high_52w': high_52w,
-        'low_52w': low_52w,
-        'avg_volume': avg_volume,
-        'open': float(df['Open'].iloc[-1]),
-        'high': float(df['High'].iloc[-1]),
-        'low': float(df['Low'].iloc[-1]),
-        'volume': float(df['Volume'].iloc[-1]),
-    }
+
+    try:
+        # Flatten columns if multi-level
+        df = data.copy()
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+
+        # Validate required columns exist
+        required_cols = ['Close', 'Open', 'High', 'Low', 'Volume']
+        missing = [col for col in required_cols if col not in df.columns]
+        if missing:
+            logger.error(f"Missing columns for price info: {missing}")
+            return None
+
+        current = float(df['Close'].iloc[-1])
+        previous = float(df['Close'].iloc[-2])
+
+        # Handle edge case of zero previous price
+        if previous == 0:
+            logger.warning("Previous close is zero, cannot calculate change percentage")
+            change_pct = 0.0
+        else:
+            change_pct = ((current - previous) / previous) * 100
+
+        change = current - previous
+
+        # Get additional stats with fallbacks
+        tail_252 = df.tail(252)
+        high_52w = float(tail_252['High'].max()) if len(tail_252) > 0 else current
+        low_52w = float(tail_252['Low'].min()) if len(tail_252) > 0 else current
+
+        tail_20 = df.tail(20)
+        avg_volume = float(tail_20['Volume'].mean()) if len(tail_20) > 0 else 0
+
+        return {
+            'current_price': current,
+            'previous_close': previous,
+            'change': change,
+            'change_pct': change_pct,
+            'high_52w': high_52w,
+            'low_52w': low_52w,
+            'avg_volume': avg_volume,
+            'open': float(df['Open'].iloc[-1]),
+            'high': float(df['High'].iloc[-1]),
+            'low': float(df['Low'].iloc[-1]),
+            'volume': float(df['Volume'].iloc[-1]),
+        }
+
+    except Exception as e:
+        logger.error(f"Error calculating price info: {str(e)}")
+        return None
 
 
-def calculate_returns(data: pd.DataFrame, periods: List[int] = [5, 20, 60, 252]) -> Dict:
+def calculate_returns(data: pd.DataFrame, periods: List[int] = [5, 20, 60, 252]) -> Dict[str, float]:
     """
-    Calculate returns over various periods.
-    
+    Calculate returns over various periods with error handling.
+
     Args:
         data: Stock price DataFrame
         periods: List of periods (in days) to calculate returns
-    
+
     Returns:
         Dictionary with period -> return percentage
     """
-    df = data.copy()
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-    
-    returns = {}
-    current_price = float(df['Close'].iloc[-1])
-    
-    period_names = {
-        5: '1W',
-        20: '1M',
-        60: '3M',
-        252: '1Y'
-    }
-    
-    for period in periods:
-        if len(df) > period:
-            past_price = float(df['Close'].iloc[-(period+1)])
-            ret = ((current_price - past_price) / past_price) * 100
-            name = period_names.get(period, f'{period}D')
-            returns[name] = ret
-    
-    return returns
+    if data is None or data.empty:
+        logger.warning("Empty data provided for returns calculation")
+        return {}
+
+    try:
+        df = data.copy()
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+
+        if 'Close' not in df.columns:
+            logger.error("'Close' column not found in data")
+            return {}
+
+        returns = {}
+        current_price = float(df['Close'].iloc[-1])
+
+        period_names = {
+            5: '1W',
+            20: '1M',
+            60: '3M',
+            252: '1Y'
+        }
+
+        for period in periods:
+            if len(df) > period:
+                past_price = float(df['Close'].iloc[-(period+1)])
+
+                # Handle edge case of zero past price
+                if past_price == 0:
+                    logger.warning(f"Past price is zero for {period}-day return calculation")
+                    continue
+
+                ret = ((current_price - past_price) / past_price) * 100
+                name = period_names.get(period, f'{period}D')
+                returns[name] = ret
+
+        return returns
+
+    except Exception as e:
+        logger.error(f"Error calculating returns: {str(e)}")
+        return {}
 
 
 # Watchlist management using session state
