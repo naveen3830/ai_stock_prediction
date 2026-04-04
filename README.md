@@ -5,9 +5,9 @@ This project demonstrates the use of traditional time series models (ARIMA) and 
 
 ## Features
 
-- ** Data Source**: Historical stock price data retrieved using the `yfinance` Python library.
-- ** Target Variable**: Closing prices of stocks in the S&P 500 index.
-- ** Models**:
+- **Data Source**: Historical stock price data retrieved using the `yfinance` Python library.
+- **Target Variable**: Closing prices of stocks in the S&P 500 index.
+- **Models**:
   - **ARIMA**: Traditional time series model for short-term forecasts.
   - **LSTM**: Deep learning model for capturing non-linear trends and long-term dependencies.
 - ** Web Interface**: Interactive Streamlit app for model visualization and comparison.
@@ -40,7 +40,7 @@ This project demonstrates the use of traditional time series models (ARIMA) and 
   - Computationally intensive, requiring significant hardware.
 
 ##  Results
-- ** Metrics**:
+- **Metrics**:
   - LSTM: MAE = 2.34, MSE = 8.92, R² = 0.87.
 - LSTM outperformed ARIMA, excelling in capturing non-linear trends and volatility.
 
