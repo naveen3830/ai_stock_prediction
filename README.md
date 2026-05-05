@@ -61,7 +61,6 @@ This project demonstrates the use of traditional time series models (ARIMA) and 
    ```
 
 ## Future Directions
-- Incorporate external factors like macroeconomic indicators and sentiment analysis.
-- Explore advanced models (e.g., Transformers) for improved predictions.
-- Combine ARIMA and LSTM in hybrid models.
+- Integrate external signals like macroeconomic indicators and sentiment data, and explore advanced models such as Temporal Fusion Transformer and Informer for  better accuracy.
+- Develop hybrid approaches combining ARIMA and LSTM, along with real-time deployment and explainability using SHAP.
  
