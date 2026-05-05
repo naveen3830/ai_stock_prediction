@@ -60,8 +60,5 @@ This project demonstrates the use of traditional time series models (ARIMA) and 
    streamlit run app.py
    ```
 
-## Future Directions
-- Incorporate external factors like macroeconomic indicators and sentiment analysis.
-- Explore advanced models (e.g., Transformers) for improved predictions.
-- Combine ARIMA and LSTM in hybrid models.
+
  
