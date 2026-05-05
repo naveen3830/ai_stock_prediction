@@ -31,14 +31,6 @@ This project demonstrates the use of traditional time series models (ARIMA) and 
 ### 3. Deployment
 - Deployed on a Streamlit web app for interactive stock selection and prediction visualization.
 
-##  Challenges and Solutions
-- **ARIMA**:
-  - Required data stationarity through extensive preprocessing.
-  - Manual hyperparameter tuning using grid search and AIC.
-- **LSTM**:
-  - Overfitting resolved by adding dropout layers.
-  - Computationally intensive, requiring significant hardware.
-
 ##  Results
 - **Metrics**:
   - LSTM: MAE = 2.34, MSE = 8.92, R² = 0.87.
