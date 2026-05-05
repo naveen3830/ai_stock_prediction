@@ -28,9 +28,6 @@ This project demonstrates the use of traditional time series models (ARIMA) and 
   - Used Adam optimizer and Mean Squared Error (MSE) loss.
   - Outperformed ARIMA in both short-term and long-term forecasting.
 
-### 3. Deployment
-- Deployed on a Streamlit web app for interactive stock selection and prediction visualization.
-
 ##  Challenges and Solutions
 - **ARIMA**:
   - Required data stationarity through extensive preprocessing.
