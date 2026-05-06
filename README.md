@@ -1,8 +1,4 @@
 
-# Stock Price Prediction with ARIMA and LSTM Models
-
-This project demonstrates the use of traditional time series models (ARIMA) and deep learning models (LSTM) for predicting stock prices. It integrates data preprocessing, model training, and deployment into a user-friendly Streamlit web application.
-
 ## Features
 
 - **Data Source**: Historical stock price data retrieved using the `yfinance` Python library.
