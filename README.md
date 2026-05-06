@@ -39,10 +39,6 @@ This project demonstrates the use of traditional time series models (ARIMA) and 
   - Overfitting resolved by adding dropout layers.
   - Computationally intensive, requiring significant hardware.
 
-##  Results
-- **Metrics**:
-  - LSTM: MAE = 2.34, MSE = 8.92, R² = 0.87.
-- LSTM outperformed ARIMA, excelling in capturing non-linear trends and volatility.
 
 ## How to Run
 
