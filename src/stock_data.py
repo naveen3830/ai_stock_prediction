@@ -245,15 +245,19 @@ def load_stock_data(symbol: str, start_date: str = "2015-01-01", end_date: str =
             logger.warning(f"No data returned for {symbol}")
             return pd.DataFrame()
 
+        # Handle multi-level columns from yfinance first
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
+        
+        # Clean columns index name
+        data.columns.name = None
+
+        # Ensure index is named 'Date' so reset_index names the column 'Date'
+        data.index.name = 'Date'
         data.reset_index(inplace=True)
 
         # Validate data quality
         required_columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
-
-        # Handle multi-level columns from yfinance
-        if isinstance(data.columns, pd.MultiIndex):
-            data.columns = data.columns.get_level_values(0)
-
         missing_cols = [col for col in required_columns if col not in data.columns]
         if missing_cols:
             logger.error(f"Missing columns in data for {symbol}: {missing_cols}")
