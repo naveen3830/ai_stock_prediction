@@ -12,13 +12,6 @@ This project demonstrates the use of traditional time series models (ARIMA) and 
   - **LSTM**: Deep learning model for capturing non-linear trends and long-term dependencies.
 - ** Web Interface**: Interactive Streamlit app for model visualization and comparison.
 
-## Project Workflow
-
-### 1. Data Preprocessing
-- Data normalized using `MinMaxScaler`.
-- Sliding window of 60 days used to create input-output sequences for LSTM.
-- Stationarity achieved using differencing for ARIMA.
-
 ### 2. Modeling Approaches
 - **ARIMA**:
   - Hyperparameter selection via MINIC and ESACF methods.
