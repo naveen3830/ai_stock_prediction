@@ -467,3 +467,19 @@ def is_in_watchlist(symbol: str) -> bool:
     """Check if a stock is in the watchlist."""
     init_watchlist()
     return symbol in st.session_state.watchlist
+
+def calculate_moving_average(data: pd.DataFrame, window: int = 20) -> pd.Series:
+    """
+    Calculate moving average.
+
+    Args:
+        data: Stock DataFrame
+        window: Number of days
+
+    Returns:
+        Moving average series
+    """
+    if 'Close' not in data.columns:
+        return pd.Series()
+
+    return data['Close'].rolling(window=window).mean()
